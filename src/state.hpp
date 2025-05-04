@@ -49,8 +49,8 @@ struct QuitAction {};
 // SelectTodoAction, RequestSaveAction, RequestLoadAction, LoadCompleteAction,
 // SetStatusAction, QuitAction
 using Action = std::variant<SetInputTextAction, AddTodoAction, RemoveSelectedTodoAction, ToggleSelectedTodoAction,
-  SelectTodoAction, RequestSaveAction, RequestLoadAction, LoadCompleteAction,
-  SetStatusAction, QuitAction>;
+                            SelectTodoAction, RequestSaveAction, RequestLoadAction, LoadCompleteAction,
+                            SetStatusAction, QuitAction>;
 
 // --- Effect Type Alias ---
 using AppEffect = lager::effect<Action>;
@@ -64,7 +64,7 @@ inline std::pair<AppState, AppEffect> reducer(AppState current_state, const Acti
 // We need a way for effects to know the data_path. Let's make it a static
 // variable within this translation unit, initialized from main.
 namespace { // Anonymous namespace to limit scope
-    inline std::filesystem::path global_data_path;
+inline std::filesystem::path global_data_path;
 }
 
 inline void initialize_persistence_path(const std::filesystem::path& path) {
@@ -89,7 +89,7 @@ inline AppEffect save_effect(AppState state_to_save) {
 
 inline AppEffect load_effect() {
     return [](lager::context<Action> ctx) {
-         if (global_data_path.empty()) {
+        if (global_data_path.empty()) {
             spdlog::error("Load effect failed: Data path not initialized!");
             ctx.dispatch(LoadCompleteAction{std::nullopt, "ERROR: Load path not configured."});
             return;
