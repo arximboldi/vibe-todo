@@ -15,7 +15,7 @@ A simple terminal-based Todo list application written in C++ using a value-orien
 
 *   **C++17:** Core language.
 *   **CMake:** Build system.
-*   **FTXUI:** Terminal User Interface library.
+*   **ImTUI:** Terminal User Interface library.
 *   **Lager:** Value-oriented state management (Redux/Elm-like).
 *   **Immer:** Persistent/Immutable data structures (used by Lager).
 *   **Spdlog:** Logging library.
