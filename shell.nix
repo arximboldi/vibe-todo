@@ -23,6 +23,7 @@ pkgs.mkShell {
 
     # Libraries that might be needed by dependencies (FTXUI -> ncurses)
     ncurses
+    boost
     # zlib
   ];
 
