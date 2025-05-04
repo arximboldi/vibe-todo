@@ -23,100 +23,99 @@
 
 using namespace ftxui;
 
-// --- UI Rendering --- (AppUI - Same as before, takes lager::store)
-// Takes the lager::store to dispatch actions and get state
 Component AppUI(lager::store<Action, AppState>& store) {
+    // Create component state that persists with the component
+    auto input_buffer = std::make_shared<std::string>("");
+    auto current_selection = std::make_shared<int>(-1);
+    auto menu_entries = std::make_shared<std::vector<std::string>>();
 
-    // Input field component state (local to ftxui component)
-    // Reads initial value from store, dispatches action on change/enter
-    // NOTE: Using store.get() here might be slightly inefficient if called often.
-    // For high-frequency updates, consider caching or a different binding.
-    // Input component needs a mutable string pointer. We can't directly use
-    // store.get().current_input. We need a temporary or manage it differently.
+    // Input component
+    auto input_component = Input(
+        input_buffer.get(),
+        "New Todo Text",
+        InputOption{
+            .on_change = [&store, input_buffer] {
+                store.dispatch(SetInputTextAction{*input_buffer});
+            },
+                .on_enter = [&store] {
+                    store.dispatch(AddTodoAction{});
+                }
+                }
+        );
 
-    // Let's manage input text purely via actions. Input displays store state.
-    // Option 1: Update store on every keystroke (might be slow)
-    // Option 2: Use ftxui local state for Input, dispatch AddTodoAction on Enter.
+    // Update menu entries based on current state
+    auto& state = store.get();
+    menu_entries->clear();
+    for (const auto& todo : state.todos) {
+        menu_entries->push_back((todo.done ? "[x] " : "[ ] ") + todo.text);
+    }
 
-    // Let's try Option 2: Use ftxui's Input state, but update AppState only on Enter.
-    // This requires AppState.current_input to be less tightly coupled to the Input field display.
-    // Or, we use SetInputTextAction more carefully.
-    // Let's stick to the pattern: Input reads from AppState, Enter dispatches Add.
-
-    static auto new_todo_text_input = std::string{};
-    auto input_component = Input(                       // component
-        &new_todo_text_input,                  // data model -> string reference
-        "New Todo Text",                             // placeholder
-        InputOption{.on_change = [&] {          // on_change callback
-                        // Dispatch action on *every* change
-                        // Note: store.get().current_input is already updated by Input component
-                        store.dispatch(SetInputTextAction{new_todo_text_input});
-                    },
-                   .on_enter = [&store] { store.dispatch(AddTodoAction{}); } // on_enter
-                   });
-
-    // --- Todo List Display (Using Menu) ---
-    static int current_selection = 0;
-    auto menu_options = ftxui::MenuOption::Vertical();
-    // Use store.dispatch for menu actions
-    menu_options.on_change = [&]() {
-        store.dispatch(SelectTodoAction{current_selection});
+    auto menu_options = MenuOption::Vertical();
+    menu_options.on_change = [&store, current_selection] {
+        store.dispatch(SelectTodoAction{*current_selection});
     };
-    menu_options.on_enter = [&]() {
+    menu_options.on_enter = [&store] {
         store.dispatch(ToggleSelectedTodoAction{});
     };
 
-    // Renderer for the main layout
-    // Captures the store to access current state via store.get()
-    auto layout = Renderer([&](bool /* focused */) {
-        const auto& state = store.get(); // Get current state snapshot from store
+    // Menu setup
+    auto todo_menu = Menu(menu_entries.get(), current_selection.get(), menu_options);
 
-        std::vector<std::string> menu_entries;
-        for (const auto& todo : state.todos) {
-            menu_entries.push_back((todo.done ? "[x] " : "[ ] ") + todo.text);
-        }
-
-        // Need to pass a pointer to the *current* selected index from the state
-        // Since state is immutable, we pass state.selected_index directly (by value copy).
-        // If Menu requires a pointer, this pattern needs adjustment.
-        // FTXUI Menu takes int* selected. This is problematic with immutable state.
-        // Workaround: Create a temporary copy for Menu's use within this render cycle.
-        // This is not ideal, as Menu might try to modify it.
-        // Let's check if Menu can work with just `on_change`. Maybe `selected` pointer isn't strictly needed if we rely on `on_change`?
-        // Okay, Menu *needs* the pointer for its internal state.
-        // Hacky workaround: use a static or member variable in a class wrapper? No, keep it functional.
-        // Best approach: Pass a *copy* of the index. The Menu component will update its internal visual state.
-        // Our *actual* state update happens via dispatch(SelectTodoAction) triggered by on_change.
-        auto todo_menu = Menu(&menu_entries, &current_selection, menu_options);
-
-        // --- Buttons ---
-        auto add_button = Button("Add", [&] { store.dispatch(AddTodoAction{}); });
-        auto remove_button = Button("Remove Sel.", [&] { store.dispatch(RemoveSelectedTodoAction{}); });
-        auto toggle_button = Button("Toggle Sel.", [&] { store.dispatch(ToggleSelectedTodoAction{}); });
-        auto save_button = Button("Save", [&] { store.dispatch(RequestSaveAction{}); });
-        auto quit_button = Button("Quit", [&] { store.dispatch(QuitAction{}); });
-
-        auto buttons_bar = hbox({ /* ... buttons ... */ });
-
-        return vbox({
-                   text("TODO List Manager (Lager)") | bold | hcenter,
-                   separator(),
-                   todo_menu->Render() | vscroll_indicator | frame | flex_grow,
-                   separator(),
-                   hbox(text(" New: "), input_component->Render()),
-                   separator(),
-                   buttons_bar,
-                   separator(),
-                   text("Status: " + state.status_message) | dim
-               }) | border;
+    // Create the menu as a component
+    auto menu_component = Renderer([&store, current_selection, todo_menu](bool focused) {
+        // Add focus styling
+        return todo_menu->Render() | frame | flex_grow;
     });
 
-    // Container for focus handling
-    return Container::Vertical({
-        input_component,
-        layout // Contains the Menu
-    }) | CatchEvent([layout](Event event) {
-        return layout->OnEvent(event);
+    // Add decorations and status display through a renderer
+
+    // Buttons
+    auto add_button = Button("Add", [&store] {
+        store.dispatch(AddTodoAction{});
+    });
+    auto remove_button = Button("Remove", [&store] {
+        store.dispatch(RemoveSelectedTodoAction{});
+    });
+    auto toggle_button = Button("Toggle", [&store] {
+        store.dispatch(ToggleSelectedTodoAction{});
+    });
+    auto save_button = Button("Save", [&store] {
+        store.dispatch(RequestSaveAction{});
+    });
+    auto load_button = Button("Load", [&store] {
+        store.dispatch(RequestLoadAction{});
+    });
+    auto quit_button = Button("Quit", [&store] {
+        store.dispatch(QuitAction{});
+    });
+
+    // Group buttons in a horizontal container
+    auto button_container = Container::Horizontal({
+            add_button, remove_button, toggle_button,
+            save_button, load_button, quit_button
+        });
+
+    // Layout container with all focusable components
+    auto main_container = Container::Vertical({
+            input_component,   // Input field (focus 1)
+            menu_component,    // Todo list (focus 2)
+            button_container   // Buttons (focus 3)
+        });
+
+    return Renderer([&store, current_selection, menu_entries, main_container] {
+        return vbox({
+                text("TODO List Manager (Lager)") | bold | hcenter,
+                separator(),
+                main_container->Render(),  // Renders all components
+                separator(),
+                text("Status: " + store->status_message) | dim  // Status text (not focusable)
+            }) | border;
+    }) | CatchEvent([&store](Event event) {
+        if (event == Event::Character('q')) {
+            store.dispatch(QuitAction{});
+            return true;
+        }
+        return false;  // Allow other events to pass through
     });
 }
 
@@ -133,7 +132,7 @@ int main() {
 
         // Ensure the directory exists (spdlog might do this, but let's be safe)
         if (!log_file_path.parent_path().empty() && !std::filesystem::exists(log_file_path.parent_path())) {
-             std::filesystem::create_directories(log_file_path.parent_path());
+            std::filesystem::create_directories(log_file_path.parent_path());
         }
     } catch (const std::exception& e) {
         std::cerr << "Error determining file paths: " << e.what() << std::endl;
@@ -162,9 +161,9 @@ int main() {
     } catch (const spdlog::spdlog_ex& ex) {
         std::cerr << "Log initialization failed: " << ex.what() << std::endl;
         return 1;
-     } catch (const std::exception& e) { // Catch potential filesystem errors during sink creation
-         std::cerr << "Log file sink creation failed: " << e.what() << std::endl;
-         return 1;
+    } catch (const std::exception& e) { // Catch potential filesystem errors during sink creation
+        std::cerr << "Log file sink creation failed: " << e.what() << std::endl;
+        return 1;
     }
 
     spdlog::info("Application starting");
