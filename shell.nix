@@ -3,7 +3,7 @@
 let
   # Pin nixpkgs to a known stable revision from nixos-24.05 branch (example)
   # Find recent revisions at: https://status.nixos.org/
-  nixpkgsRev = "20df415b8462694e7f1f83a317a633d4b36006ad"; # nixos-24.05 as of 2024-07-23
+  nixpkgsRev = "bf3287dac860542719fe7554e21e686108716879"; # nixos-24.11 as of 04-05-2025
 
   # Fetch nixpkgs source archive using fetchTarball
   nixpkgsSrc = builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/${nixpkgsRev}.tar.gz";
