@@ -174,21 +174,19 @@ int main() {
     auto screen = ScreenInteractive::Fullscreen();
 
     // --- Lager Store Setup ---
-    auto effect_runner = lager::manual_event_loop{};
     auto store = lager::make_store<Action>(
-        reducer,
         initial_state,
-        lager::identity, // No middleware
-        effect_runner
+        lager::with_manual_event_loop{},
+        lager::with_reducer(reducer)
         );
 
     // --- Connect Lager Store to FTXUI ---
-    auto term_conn = lager::watch(
+    lager::watch(
         store,
         [&](AppState const& state) {
             if (state.exit_requested) {
                 spdlog::info("Exit requested flag detected, stopping loop.");
-                screen.ExitLoop();
+                screen.Exit();
             } else {
                 // Only trigger redraw if not exiting
                 screen.PostEvent(Event::Custom);
@@ -200,12 +198,9 @@ int main() {
 
     // --- Run Event Loop ---
     spdlog::info("Starting UI loop");
-    screen.Loop(ui, [&] {
-        effect_runner.step(); // Drive effects
-    });
+    screen.Loop(ui);
 
     // --- Cleanup ---
-    term_conn.disconnect();
     spdlog::info("Application finished cleanly");
     spdlog::shutdown(); // Flush and release logger resources
     return 0;
