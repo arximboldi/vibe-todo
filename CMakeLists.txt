@@ -11,6 +11,17 @@ endif()
 
 include(FetchContent)
 
+set(immer_BUILD_TESTS off)
+set(immer_BUILD_EXAMPLES off)
+set(immer_BUILD_EXTRAS off)
+set(immer_BUILD_DOCS off)
+set(zug_BUILD_TESTS off)
+set(zug_BUILD_EXAMPLES off)
+set(zug_BUILD_DOCS off)
+set(lager_BUILD_TESTS off)
+set(lager_BUILD_EXAMPLES off)
+set(lager_BUILD_DOCS off)
+
 # FTXUI, immer, zug, lager, nlohmann_json FetchContent declarations...
 # (Same as the previous Todo example)
 FetchContent_Declare(ftxui GIT_REPOSITORY https://github.com/ArthurSonzogni/FTXUI.git GIT_TAG v5.0.0)
@@ -55,7 +66,9 @@ target_link_libraries(tui_app PRIVATE
     ftxui::screen
     ftxui::component
     # immer::immer # Might not be needed to link directly if lager links it
-    lager::lager        # Links immer and zug transitively
+    immer
+    zug
+    lager        # Links immer and zug transitively
     nlohmann_json::nlohmann_json
     spdlog::spdlog      # Link spdlog (header-only or static lib)
     # Filesystem linking if needed (see previous examples)
