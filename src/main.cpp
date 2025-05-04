@@ -137,28 +137,21 @@ void renderUI(lager::store<Action, AppState>& store) {
     // Todo list with keyboard navigation
     ImGui::BeginChild("TodoList", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()), true);
 
-    bool list_focused = ImGui::IsWindowFocused();
-
     // Handle keyboard navigation in the list
-    if (list_focused && !input_focused) {
-        // Up/Down arrows to navigate
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)) && state.selected_index > 0) {
-            store.dispatch(SelectTodoAction{state.selected_index - 1});
-        }
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow)) &&
-            state.selected_index < static_cast<int>(state.todos.size()) - 1) {
-            store.dispatch(SelectTodoAction{state.selected_index + 1});
-        }
-
-        // Enter key to toggle selected item
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter))) {
-            store.dispatch(ToggleSelectedTodoAction{});
-        }
-
-        // Delete key to remove selected item
-        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete))) {
-            store.dispatch(RemoveSelectedTodoAction{});
-        }
+    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)) && state.selected_index > 0) {
+        store.dispatch(SelectTodoAction{state.selected_index - 1});
+    }
+    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow)) &&
+        state.selected_index < static_cast<int>(state.todos.size()) - 1) {
+        store.dispatch(SelectTodoAction{state.selected_index + 1});
+    }
+    // Enter key to toggle selected item
+    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Space))) {
+        store.dispatch(ToggleSelectedTodoAction{});
+    }
+    // Delete key to remove selected item
+    if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete))) {
+        store.dispatch(RemoveSelectedTodoAction{});
     }
 
     for (int i = 0; i < state.todos.size(); i++) {
@@ -266,7 +259,7 @@ int main() {
     auto screen = ImTui_ImplNcurses_Init(true);
     ImTui_ImplText_Init();
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    // io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     // --- Lager Store Setup ---
     auto store = lager::make_store<Action>(
