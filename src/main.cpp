@@ -43,26 +43,28 @@ Component AppUI(lager::store<Action, AppState>& store) {
     // Or, we use SetInputTextAction more carefully.
     // Let's stick to the pattern: Input reads from AppState, Enter dispatches Add.
 
+    static auto new_todo_text_input = std::string{};
     auto input_component = Input(                       // component
-        &store.get().current_input,                  // data model -> string reference
+        &new_todo_text_input,                  // data model -> string reference
         "New Todo Text",                             // placeholder
-        InputOption{.on_change = [&store] {          // on_change callback
+        InputOption{.on_change = [&] {          // on_change callback
                         // Dispatch action on *every* change
                         // Note: store.get().current_input is already updated by Input component
-                        store.dispatch(SetInputTextAction{store.get().current_input});
+                        store.dispatch(SetInputTextAction{new_todo_text_input});
                     },
                    .on_enter = [&store] { store.dispatch(AddTodoAction{}); } // on_enter
                    });
 
     // --- Todo List Display (Using Menu) ---
-    auto menu_options = MenuOption::Vertical();
+    static int current_selection = 0;
+    auto menu_options = ftxui::MenuOption::Vertical();
     // Use store.dispatch for menu actions
-    menu_options.on_change = [&](int selected) {
-        store.dispatch(SelectTodoAction{selected});
+    menu_options.on_change = [&]() {
+        store.dispatch(SelectTodoAction{current_selection});
     };
-     menu_options.on_enter = [&] {
-         store.dispatch(ToggleSelectedTodoAction{});
-     };
+    menu_options.on_enter = [&]() {
+        store.dispatch(ToggleSelectedTodoAction{});
+    };
 
     // Renderer for the main layout
     // Captures the store to access current state via store.get()
@@ -85,7 +87,6 @@ Component AppUI(lager::store<Action, AppState>& store) {
         // Hacky workaround: use a static or member variable in a class wrapper? No, keep it functional.
         // Best approach: Pass a *copy* of the index. The Menu component will update its internal visual state.
         // Our *actual* state update happens via dispatch(SelectTodoAction) triggered by on_change.
-        int current_selection = state.selected_index; // Copy for Menu's pointer
         auto todo_menu = Menu(&menu_entries, &current_selection, menu_options);
 
         // --- Buttons ---
