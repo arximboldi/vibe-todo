@@ -24,15 +24,14 @@ set(lager_BUILD_DOCS off)
 
 # FTXUI, immer, zug, lager, nlohmann_json FetchContent declarations...
 # (Same as the previous Todo example)
-FetchContent_Declare(ftxui GIT_REPOSITORY https://github.com/ArthurSonzogni/FTXUI.git GIT_TAG v5.0.0)
-FetchContent_MakeAvailable(ftxui)
+# ImTui, immer, zug, lager, and nlohmann_json FetchContent declarations
+FetchContent_Declare(imtui GIT_REPOSITORY https://github.com/ggerganov/imtui.git GIT_TAG v1.0.5)
+FetchContent_MakeAvailable(imtui)
 FetchContent_Declare(immer GIT_REPOSITORY https://github.com/arximboldi/immer.git GIT_TAG v0.8.1)
 FetchContent_MakeAvailable(immer)
 FetchContent_Declare(zug GIT_REPOSITORY https://github.com/arximboldi/zug.git GIT_TAG v0.1.1)
 FetchContent_MakeAvailable(zug)
 FetchContent_Declare(lager GIT_REPOSITORY https://github.com/arximboldi/lager.git GIT_TAG v0.1.1)
-set(LAGER_USE_SYSTEM_IMMER ON)
-set(LAGER_USE_SYSTEM_ZUG ON)
 FetchContent_MakeAvailable(lager)
 FetchContent_Declare(nlohmann_json GIT_REPOSITORY https://github.com/nlohmann/json.git GIT_TAG v3.11.3)
 FetchContent_MakeAvailable(nlohmann_json)
@@ -63,9 +62,9 @@ target_include_directories(tui_app PRIVATE
 )
 
 target_link_libraries(tui_app PRIVATE
-    ftxui::screen
-    ftxui::component
     # immer::immer # Might not be needed to link directly if lager links it
+    imtui
+    imtui-ncurses
     immer
     zug
     lager        # Links immer and zug transitively
@@ -75,7 +74,7 @@ target_link_libraries(tui_app PRIVATE
 )
 
 # Ensure C++17 features enabled
-target_compile_features(tui_app PRIVATE cxx_std_17)
+target_compile_features(tui_app PRIVATE cxx_std_20)
 
 # If using header-only spdlog, you might need this define
 # target_compile_definitions(tui_app PRIVATE SPDLOG_HEADER_ONLY)

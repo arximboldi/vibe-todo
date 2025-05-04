@@ -27,6 +27,10 @@ pkgs.mkShell {
     # zlib
   ];
 
+  shellHook = ''
+    export TERM=xterm-256color
+  '';
+
   # Optional: Set environment variables if needed
   # shellHook = ''
   #   export SOME_VAR="value"
