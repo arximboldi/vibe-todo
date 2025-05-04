@@ -1,3 +1,9 @@
+>
+> This is an experiment in vibe coding. Most of this code has been
+> written interacting with
+> [`gptel`](https://github.com/karthink/gptel) inside Emacs.
+>
+
 # TUI Todo App (C++)
 
 A simple terminal-based Todo list application written in C++ using a value-oriented architecture.
