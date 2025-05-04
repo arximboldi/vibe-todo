@@ -1,6 +1,6 @@
 #pragma once
 
-#include <immer/vector.hpp>
+#include <immer/flex_vector.hpp>
 #include <lager/effect.hpp>
 #include <lager/context.hpp>
 #include <string>
@@ -24,7 +24,7 @@ struct TodoItem {
 };
 
 struct AppState {
-    immer::vector<TodoItem> todos;
+    immer::flex_vector<TodoItem> todos;
     std::string current_input = "";
     int selected_index = -1;
     std::string status_message = "Ready";
