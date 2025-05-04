@@ -112,93 +112,93 @@ inline AppEffect load_effect() {
 // --- Reducer Implementation ---
 inline std::pair<AppState, AppEffect> reducer(AppState current_state, const Action& action) {
     // Use lager::match for action handling
-    return lager::match(action,
-                        // Each lambda handles one action type
-                        [&](SetInputTextAction act) -> std::pair<AppState, AppEffect> {
-                            AppState next_state = current_state;
-                            next_state.current_input = act.text;
-                            return {std::move(next_state), lager::noop};
-                        },
-                        [&](AddTodoAction) -> std::pair<AppState, AppEffect> {
-                            AppState next_state = current_state;
-                            if (!next_state.current_input.empty()) {
-                                next_state.todos = next_state.todos.push_back({next_state.current_input, false});
-                                next_state.current_input = "";
-                                next_state.selected_index = next_state.todos.size() - 1;
-                                next_state.status_message = "Todo added.";
-                            } else {
-                                next_state.status_message = "Input is empty.";
-                            }
-                            return {std::move(next_state), lager::noop};
-                        },
-                        [&](RemoveSelectedTodoAction) -> std::pair<AppState, AppEffect> {
-                            AppState next_state = current_state;
-                            if (next_state.selected_index >= 0 && next_state.selected_index < next_state.todos.size()) {
-                                size_t index_to_remove = static_cast<size_t>(next_state.selected_index);
-                                next_state.todos = next_state.todos.erase(index_to_remove);
-                                if (next_state.todos.empty()) {
-                                    next_state.selected_index = -1;
-                                } else if (next_state.selected_index >= next_state.todos.size()) {
-                                    next_state.selected_index = next_state.todos.size() - 1;
-                                }
-                                next_state.status_message = "Todo removed.";
-                            } else {
-                                next_state.status_message = "No item selected to remove.";
-                            }
-                            return {std::move(next_state), lager::noop};
-                        },
-                        [&](ToggleSelectedTodoAction) -> std::pair<AppState, AppEffect> {
-                            AppState next_state = current_state;
-                            if (next_state.selected_index >= 0 && next_state.selected_index < next_state.todos.size()) {
-                                size_t index_to_toggle = static_cast<size_t>(next_state.selected_index);
-                                TodoItem updated_item = next_state.todos[index_to_toggle];
-                                updated_item.done = !updated_item.done;
-                                next_state.todos = next_state.todos.set(index_to_toggle, updated_item);
-                                next_state.status_message = "Todo toggled.";
-                            } else {
-                                next_state.status_message = "No item selected to toggle.";
-                            }
-                            return {std::move(next_state), lager::noop};
-                        },
-                        [&](SelectTodoAction act) -> std::pair<AppState, AppEffect> {
-                            AppState next_state = current_state;
-                            if (act.index >= -1 && act.index < next_state.todos.size()) {
-                                next_state.selected_index = act.index;
-                            }
-                            return {std::move(next_state), lager::noop};
-                        },
-                        // --- Effects ---
-                        [&](RequestSaveAction) -> std::pair<AppState, AppEffect> {
-                            AppState next_state = current_state;
-                            next_state.status_message = "Saving...";
-                            // Pass the state /to be saved/ to the effect creator
-                            return {std::move(next_state), save_effect(current_state)};
-                        },
-                        [&](RequestLoadAction) -> std::pair<AppState, AppEffect> {
-                            AppState next_state = current_state;
-                            next_state.status_message = "Loading...";
-                            return {std::move(next_state), load_effect()};
-                        },
-                        [&](LoadCompleteAction act) -> std::pair<AppState, AppEffect> {
-                            AppState next_state = current_state;
-                            if(act.loaded_state) {
-                                next_state.todos = act.loaded_state->todos;
-                                next_state.selected_index = next_state.todos.empty() ? -1 : 0;
-                            }
-                            next_state.status_message = act.message;
-                            return {std::move(next_state), lager::noop};
-                        },
-                        // --- Other ---
-                        [&](SetStatusAction act) -> std::pair<AppState, AppEffect> {
-                            AppState next_state = current_state;
-                            next_state.status_message = act.message;
-                            return {std::move(next_state), lager::noop};
-                        },
-                        [&](QuitAction) -> std::pair<AppState, AppEffect> {
-                            AppState next_state = current_state;
-                            next_state.exit_requested = true;
-                            next_state.status_message = "Exiting...";
-                            return {std::move(next_state), lager::noop};
-                        }
+    return lager::match(action)(
+        // Each lambda handles one action type
+        [&](SetInputTextAction act) -> std::pair<AppState, AppEffect> {
+            AppState next_state = current_state;
+            next_state.current_input = act.text;
+            return {std::move(next_state), lager::noop};
+        },
+        [&](AddTodoAction) -> std::pair<AppState, AppEffect> {
+            AppState next_state = current_state;
+            if (!next_state.current_input.empty()) {
+                next_state.todos = next_state.todos.push_back({next_state.current_input, false});
+                next_state.current_input = "";
+                next_state.selected_index = next_state.todos.size() - 1;
+                next_state.status_message = "Todo added.";
+            } else {
+                next_state.status_message = "Input is empty.";
+            }
+            return {std::move(next_state), lager::noop};
+        },
+        [&](RemoveSelectedTodoAction) -> std::pair<AppState, AppEffect> {
+            AppState next_state = current_state;
+            if (next_state.selected_index >= 0 && next_state.selected_index < next_state.todos.size()) {
+                size_t index_to_remove = static_cast<size_t>(next_state.selected_index);
+                next_state.todos = next_state.todos.erase(index_to_remove);
+                if (next_state.todos.empty()) {
+                    next_state.selected_index = -1;
+                } else if (next_state.selected_index >= next_state.todos.size()) {
+                    next_state.selected_index = next_state.todos.size() - 1;
+                }
+                next_state.status_message = "Todo removed.";
+            } else {
+                next_state.status_message = "No item selected to remove.";
+            }
+            return {std::move(next_state), lager::noop};
+        },
+        [&](ToggleSelectedTodoAction) -> std::pair<AppState, AppEffect> {
+            AppState next_state = current_state;
+            if (next_state.selected_index >= 0 && next_state.selected_index < next_state.todos.size()) {
+                size_t index_to_toggle = static_cast<size_t>(next_state.selected_index);
+                TodoItem updated_item = next_state.todos[index_to_toggle];
+                updated_item.done = !updated_item.done;
+                next_state.todos = next_state.todos.set(index_to_toggle, updated_item);
+                next_state.status_message = "Todo toggled.";
+            } else {
+                next_state.status_message = "No item selected to toggle.";
+            }
+            return {std::move(next_state), lager::noop};
+        },
+        [&](SelectTodoAction act) -> std::pair<AppState, AppEffect> {
+            AppState next_state = current_state;
+            if (act.index >= -1 && act.index < next_state.todos.size()) {
+                next_state.selected_index = act.index;
+            }
+            return {std::move(next_state), lager::noop};
+        },
+        // --- Effects ---
+        [&](RequestSaveAction) -> std::pair<AppState, AppEffect> {
+            AppState next_state = current_state;
+            next_state.status_message = "Saving...";
+            // Pass the state /to be saved/ to the effect creator
+            return {std::move(next_state), save_effect(current_state)};
+        },
+        [&](RequestLoadAction) -> std::pair<AppState, AppEffect> {
+            AppState next_state = current_state;
+            next_state.status_message = "Loading...";
+            return {std::move(next_state), load_effect()};
+        },
+        [&](LoadCompleteAction act) -> std::pair<AppState, AppEffect> {
+            AppState next_state = current_state;
+            if(act.loaded_state) {
+                next_state.todos = act.loaded_state->todos;
+                next_state.selected_index = next_state.todos.empty() ? -1 : 0;
+            }
+            next_state.status_message = act.message;
+            return {std::move(next_state), lager::noop};
+        },
+        // --- Other ---
+        [&](SetStatusAction act) -> std::pair<AppState, AppEffect> {
+            AppState next_state = current_state;
+            next_state.status_message = act.message;
+            return {std::move(next_state), lager::noop};
+        },
+        [&](QuitAction) -> std::pair<AppState, AppEffect> {
+            AppState next_state = current_state;
+            next_state.exit_requested = true;
+            next_state.status_message = "Exiting...";
+            return {std::move(next_state), lager::noop};
+        }
         ); // End lager::match
 }
