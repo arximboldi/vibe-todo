@@ -27,6 +27,10 @@ void renderUI(lager::store<Action, AppState>& store) {
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
 
+    // Remove the default focus rectangle by customizing style
+    ImGui::PushStyleColor(ImGuiCol_NavHighlight, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+
     ImGui::Begin("TODO List Manager (Lager)", nullptr,
                  ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove);
 
@@ -34,57 +38,101 @@ void renderUI(lager::store<Action, AppState>& store) {
     ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.4f, 1.0f), "TODO List Manager (Lager)");
     ImGui::Separator();
 
+    // Preserve input text between focus changes
+    static std::string preserved_input = state.current_input;
+
     // Input field
-    static char input_buffer[256];
-    strncpy(input_buffer, state.current_input.c_str(), sizeof(input_buffer) - 1);
+    static char input_buffer[1024];
+    strncpy(input_buffer, preserved_input.c_str(), sizeof(input_buffer) - 1);
     input_buffer[sizeof(input_buffer) - 1] = '\0';
 
-    ImGui::Text("New Todo (i):");
+    ImGui::Text("New Todo:");
 
-    // Make input field auto-focus on startup
-    static bool first_render = true;
-    if (first_render) {
-        ImGui::SetKeyboardFocusHere();
-        first_render = false;
+    // Make input field stand out when focused
+    bool input_focused = ImGui::IsItemFocused() || ImGui::IsItemActive();
+    if (input_focused) {
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.2f, 0.2f, 0.3f, 1.0f));
     }
 
-    bool input_focused = ImGui::IsItemFocused();
     if (ImGui::InputText("##input", input_buffer, sizeof(input_buffer),
                          ImGuiInputTextFlags_EnterReturnsTrue)) {
+        // When Enter is pressed in the input field, update state and add todo
         store.dispatch(SetInputTextAction{input_buffer});
         store.dispatch(AddTodoAction{});
-    } else if (ImGui::IsItemDeactivatedAfterEdit()) {
-        store.dispatch(SetInputTextAction{input_buffer});
+        preserved_input = ""; // Clear after adding
+        input_buffer[0] = '\0';
+    } else {
+        // Just update our preserved input without dispatching action
+        preserved_input = input_buffer;
+    }
+    if (input_focused) {
+        ImGui::PopStyleColor();
     }
 
-    input_focused = ImGui::IsItemFocused();
+    input_focused = ImGui::IsItemFocused() || ImGui::IsItemActive();
 
-    // Buttons row with keyboard shortcuts
-    if (ImGui::Button("Add (a)") || (!input_focused && ImGui::IsKeyPressed('a'))) {
+    // Custom highlight colors for buttons when focused
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.4f, 0.4f, 0.8f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.5f, 0.5f, 0.9f, 1.0f));
+
+    // Buttons row with keyboard shortcuts (Ctrl+letter)
+    bool add_pressed = ImGui::Button("Add [a]") ||
+                      (!input_focused && ImGui::IsKeyPressed('a')) ||
+                      (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed('a'));
+    if (add_pressed) {
+        store.dispatch(SetInputTextAction{preserved_input});
         store.dispatch(AddTodoAction{});
+        preserved_input = ""; // Clear after adding
     }
+
     ImGui::SameLine();
-    if (ImGui::Button("Remove (r)") || (!input_focused && ImGui::IsKeyPressed('r'))) {
+    bool remove_pressed = ImGui::Button("Remove [r]") ||
+                         (!input_focused && ImGui::IsKeyPressed('r')) ||
+                         (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed('r'));
+    if (remove_pressed) {
         store.dispatch(RemoveSelectedTodoAction{});
     }
+
     ImGui::SameLine();
-    if (ImGui::Button("Toggle (t)") || (!input_focused && ImGui::IsKeyPressed('t'))) {
+    bool toggle_pressed = ImGui::Button("Toggle [t]") ||
+                         (!input_focused && ImGui::IsKeyPressed('t')) ||
+                         (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed('t'));
+    if (toggle_pressed) {
         store.dispatch(ToggleSelectedTodoAction{});
     }
+
     ImGui::SameLine();
-    if (ImGui::Button("Save (s)") || (!input_focused && ImGui::IsKeyPressed('s'))) {
+    bool save_pressed = ImGui::Button("Save [s]") ||
+                       (!input_focused && ImGui::IsKeyPressed('s')) ||
+                       (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed('s'));
+    if (save_pressed) {
         store.dispatch(RequestSaveAction{});
     }
+
     ImGui::SameLine();
-    if (ImGui::Button("Load (l)") || (!input_focused && ImGui::IsKeyPressed('l'))) {
+    bool load_pressed = ImGui::Button("Load [l]") ||
+                       (!input_focused && ImGui::IsKeyPressed('l')) ||
+                       (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed('l'));
+    if (load_pressed) {
         store.dispatch(RequestLoadAction{});
     }
+
     ImGui::SameLine();
-    if (ImGui::Button("Quit (q)") || (!input_focused && ImGui::IsKeyPressed('q'))) {
+    bool quit_pressed = ImGui::Button("Quit [q]") ||
+                       (!input_focused && ImGui::IsKeyPressed('q')) ||
+                       (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed('q'));
+    if (quit_pressed) {
         store.dispatch(QuitAction{});
     }
 
+    ImGui::PopStyleColor(2); // Pop button style colors
+
     ImGui::Separator();
+
+    // Improve todo list highlight style
+    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.3f, 0.3f, 0.6f, 0.7f));
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.4f, 0.4f, 0.7f, 0.7f));
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.5f, 0.5f, 0.8f, 0.7f));
 
     // Todo list with keyboard navigation
     ImGui::BeginChild("TodoList", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()), true);
@@ -118,13 +166,7 @@ void renderUI(lager::store<Action, AppState>& store) {
         bool is_selected = (i == state.selected_index);
         std::string label = (todo.done ? "[x] " : "[ ] ") + todo.text;
 
-        // Make the selection more visible in the terminal
-        if (is_selected) {
-            ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.3f, 0.5f, 0.7f, 0.8f));
-            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.4f, 0.6f, 0.8f, 0.8f));
-            ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.5f, 0.7f, 0.9f, 0.8f));
-        }
-
+        // Use ImGui's built-in selection highlighting
         if (ImGui::Selectable(label.c_str(), is_selected)) {
             store.dispatch(SelectTodoAction{i});
 
@@ -142,13 +184,10 @@ void renderUI(lager::store<Action, AppState>& store) {
                 last_click_time = now;
             }
         }
-
-        if (is_selected) {
-            ImGui::PopStyleColor(3);
-        }
     }
 
     ImGui::EndChild();
+    ImGui::PopStyleColor(3); // Pop todo list style colors
 
     // Status bar with keyboard shortcut help
     ImGui::Separator();
@@ -156,19 +195,16 @@ void renderUI(lager::store<Action, AppState>& store) {
 
     // Help text for keyboard shortcuts
     ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f),
-                     "Shortcuts: i-focus input, a-add, r-remove, t-toggle, s-save, l-load, q-quit");
+                     "Shortcuts: Tab to navigate, Ctrl+A (add), Ctrl+R (remove), Ctrl+T (toggle)");
     ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f),
-                     "Navigate: Tab, Arrows, Enter to toggle, Delete to remove");
+                     "In list: Arrows to select, Enter to toggle, Delete to remove");
 
     ImGui::End();
 
-    // Global keyboard shortcuts - implemented inside button handling above
-    // Additional global shortcuts (for input focus)
-    if (!input_focused && ImGui::IsKeyPressed('i')) {
-        // Set focus to the input field
-        ImGui::SetKeyboardFocusHere(-1); // Will set focus on next item
-    }
+    ImGui::PopStyleColor(); // Pop NavHighlight style
+    ImGui::PopStyleVar();   // Pop FrameBorderSize style
 }
+
 
 int main() {
     // --- Determine Paths FIRST ---
