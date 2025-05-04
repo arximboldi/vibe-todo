@@ -1,9 +1,10 @@
 #pragma once
 
-#include "state.hpp" // Needs AppState definition
 #include <string>
 #include <filesystem> // Requires C++17
 #include <optional>
+
+struct AppState;
 
 // Function declarations
 namespace Persistence {
