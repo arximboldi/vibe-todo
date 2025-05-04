@@ -122,36 +122,54 @@ Component AppUI(lager::store<Action, AppState>& store) {
 
 
 int main() {
+    // --- Determine Paths FIRST ---
+    // We need the data path to determine the log file path.
+    std::filesystem::path data_path;
+    std::filesystem::path log_file_path;
+    try {
+        data_path = Persistence::get_default_data_path();
+        // Place log file in the same directory as the data file.
+        log_file_path = data_path.parent_path() / "tui_todo_log.txt";
+
+        // Ensure the directory exists (spdlog might do this, but let's be safe)
+        if (!log_file_path.parent_path().empty() && !std::filesystem::exists(log_file_path.parent_path())) {
+             std::filesystem::create_directories(log_file_path.parent_path());
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Error determining file paths: " << e.what() << std::endl;
+        return 1;
+    }
+
+
     // --- Logger Setup (spdlog) ---
     try {
-        // Combine console and file sinks (optional)
-        auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-        console_sink->set_level(spdlog::level::debug); // Log debug+ to console
+        // Create a file sink
+        auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_file_path.string(), true); // true = truncate log on startup
+        file_sink->set_level(spdlog::level::trace); // Log trace level and above to the file
 
-        // Optional: File sink
-        // auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>("tui_todo_log.txt", true);
-        // file_sink->set_level(spdlog::level::trace); // Log trace+ to file
+        // Create a logger using the file sink
+        auto file_logger = std::make_shared<spdlog::logger>("file_logger", file_sink);
 
-        // Create logger with combined sinks
-        // spdlog::logger logger("multi_sink", {console_sink, file_sink});
-        // spdlog::set_default_logger(std::make_shared<spdlog::logger>(logger));
+        // Set this file logger as the default logger
+        spdlog::set_default_logger(file_logger);
 
-        // Or just use a simple console logger
-        spdlog::set_default_logger(spdlog::stdout_color_mt("console"));
+        spdlog::set_level(spdlog::level::trace); // Set global log level (must be <= sink level to pass)
+        spdlog::flush_on(spdlog::level::trace); // Flush frequently, useful for TUI/debugging
 
-        spdlog::set_level(spdlog::level::debug); // Set global log level
-        spdlog::flush_on(spdlog::level::debug); // Flush immediately for TUI debugging
-        spdlog::info("Spdlog logger initialized.");
+        spdlog::info("--- Log Start ---");
+        spdlog::info("Spdlog file logger initialized. Logging to: {}", log_file_path.string());
 
     } catch (const spdlog::spdlog_ex& ex) {
         std::cerr << "Log initialization failed: " << ex.what() << std::endl;
         return 1;
+     } catch (const std::exception& e) { // Catch potential filesystem errors during sink creation
+         std::cerr << "Log file sink creation failed: " << e.what() << std::endl;
+         return 1;
     }
 
     spdlog::info("Application starting");
 
     // --- Persistence Path ---
-    auto data_path = Persistence::get_default_data_path();
     spdlog::info("Data file path: {}", data_path.string());
     initialize_persistence_path(data_path); // Set the path for effects
 
