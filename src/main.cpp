@@ -39,8 +39,16 @@ void renderUI(lager::store<Action, AppState>& store) {
     strncpy(input_buffer, state.current_input.c_str(), sizeof(input_buffer) - 1);
     input_buffer[sizeof(input_buffer) - 1] = '\0';
 
-    ImGui::Text("New Todo:");
-    bool input_active = ImGui::IsItemActive();
+    ImGui::Text("New Todo (i):");
+
+    // Make input field auto-focus on startup
+    static bool first_render = true;
+    if (first_render) {
+        ImGui::SetKeyboardFocusHere();
+        first_render = false;
+    }
+
+    bool input_focused = ImGui::IsItemFocused();
     if (ImGui::InputText("##input", input_buffer, sizeof(input_buffer),
                          ImGuiInputTextFlags_EnterReturnsTrue)) {
         store.dispatch(SetInputTextAction{input_buffer});
@@ -49,44 +57,73 @@ void renderUI(lager::store<Action, AppState>& store) {
         store.dispatch(SetInputTextAction{input_buffer});
     }
 
-    // Track if input is focused
-    bool input_focused = ImGui::IsItemActive();
+    input_focused = ImGui::IsItemFocused();
 
-    // Rest of the code...
-    // Buttons row
-    if (ImGui::Button("Add")) {
+    // Buttons row with keyboard shortcuts
+    if (ImGui::Button("Add (a)") || (!input_focused && ImGui::IsKeyPressed('a'))) {
         store.dispatch(AddTodoAction{});
     }
     ImGui::SameLine();
-    if (ImGui::Button("Remove")) {
+    if (ImGui::Button("Remove (r)") || (!input_focused && ImGui::IsKeyPressed('r'))) {
         store.dispatch(RemoveSelectedTodoAction{});
     }
     ImGui::SameLine();
-    if (ImGui::Button("Toggle")) {
+    if (ImGui::Button("Toggle (t)") || (!input_focused && ImGui::IsKeyPressed('t'))) {
         store.dispatch(ToggleSelectedTodoAction{});
     }
     ImGui::SameLine();
-    if (ImGui::Button("Save")) {
+    if (ImGui::Button("Save (s)") || (!input_focused && ImGui::IsKeyPressed('s'))) {
         store.dispatch(RequestSaveAction{});
     }
     ImGui::SameLine();
-    if (ImGui::Button("Load")) {
+    if (ImGui::Button("Load (l)") || (!input_focused && ImGui::IsKeyPressed('l'))) {
         store.dispatch(RequestLoadAction{});
     }
     ImGui::SameLine();
-    if (ImGui::Button("Quit")) {
+    if (ImGui::Button("Quit (q)") || (!input_focused && ImGui::IsKeyPressed('q'))) {
         store.dispatch(QuitAction{});
     }
 
     ImGui::Separator();
 
-    // Todo list - using a custom list rendering
+    // Todo list with keyboard navigation
     ImGui::BeginChild("TodoList", ImVec2(0, -ImGui::GetFrameHeightWithSpacing()), true);
+
+    bool list_focused = ImGui::IsWindowFocused();
+
+    // Handle keyboard navigation in the list
+    if (list_focused && !input_focused) {
+        // Up/Down arrows to navigate
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_UpArrow)) && state.selected_index > 0) {
+            store.dispatch(SelectTodoAction{state.selected_index - 1});
+        }
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_DownArrow)) &&
+            state.selected_index < static_cast<int>(state.todos.size()) - 1) {
+            store.dispatch(SelectTodoAction{state.selected_index + 1});
+        }
+
+        // Enter key to toggle selected item
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Enter))) {
+            store.dispatch(ToggleSelectedTodoAction{});
+        }
+
+        // Delete key to remove selected item
+        if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Delete))) {
+            store.dispatch(RemoveSelectedTodoAction{});
+        }
+    }
 
     for (int i = 0; i < state.todos.size(); i++) {
         const auto& todo = state.todos[i];
         bool is_selected = (i == state.selected_index);
         std::string label = (todo.done ? "[x] " : "[ ] ") + todo.text;
+
+        // Make the selection more visible in the terminal
+        if (is_selected) {
+            ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(0.3f, 0.5f, 0.7f, 0.8f));
+            ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.4f, 0.6f, 0.8f, 0.8f));
+            ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.5f, 0.7f, 0.9f, 0.8f));
+        }
 
         if (ImGui::Selectable(label.c_str(), is_selected)) {
             store.dispatch(SelectTodoAction{i});
@@ -105,23 +142,31 @@ void renderUI(lager::store<Action, AppState>& store) {
                 last_click_time = now;
             }
         }
+
+        if (is_selected) {
+            ImGui::PopStyleColor(3);
+        }
     }
 
     ImGui::EndChild();
 
-    // Status bar
+    // Status bar with keyboard shortcut help
     ImGui::Separator();
     ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Status: %s", state.status_message.c_str());
 
-    // Keyboard shortcuts info
-    ImGui::SameLine(ImGui::GetWindowWidth() - 120);
-    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Press 'q' to quit");
+    // Help text for keyboard shortcuts
+    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f),
+                     "Shortcuts: i-focus input, a-add, r-remove, t-toggle, s-save, l-load, q-quit");
+    ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f),
+                     "Navigate: Tab, Arrows, Enter to toggle, Delete to remove");
 
     ImGui::End();
 
-    // Global keyboard shortcuts - only work when input box is not focused
-    if (!input_focused && ImGui::IsKeyPressed('q')) {
-        store.dispatch(QuitAction{});
+    // Global keyboard shortcuts - implemented inside button handling above
+    // Additional global shortcuts (for input focus)
+    if (!input_focused && ImGui::IsKeyPressed('i')) {
+        // Set focus to the input field
+        ImGui::SetKeyboardFocusHere(-1); // Will set focus on next item
     }
 }
 
@@ -184,13 +229,15 @@ int main() {
     ImGui::CreateContext();
     auto screen = ImTui_ImplNcurses_Init(true);
     ImTui_ImplText_Init();
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     // --- Lager Store Setup ---
     auto store = lager::make_store<Action>(
         initial_state,
         lager::with_manual_event_loop{},
         lager::with_reducer(reducer)
-    );
+        );
 
     // --- Store watcher for handling exit ---
     bool should_exit = false;
